@@ -1,6 +1,6 @@
-%{!?_daemon_version:%global _daemon_version 5.6.1-59.184}
-%{!?_version:%global _version 1.12.0}
-%{!?_release:%global _release 1}
+%{!?_daemon_version:%global _daemon_version 6.1.0-17}
+%{!?_version:%global _version 1.14.7}
+%{!?_release:%global _release 4}
 
 # Disable RPATH since DisplayLinkManager contains this.
 # Fedora 35 enforces this check and will stop rpmbuild from
@@ -8,8 +8,14 @@
 %global __brp_check_rpaths %{nil}
 
 %global debug_package %{nil}
+
+# asahi-linux is kernel-16k
+%global _kernel_pagesize %(getconf PAGE_SIZE | awk '{print $1/1024}')
+
 %if 0%{?rhel} && 0%{?rhel} <= 7
 %global kernel_pkg_name kernel-ml
+%elif 0%{?_kernel_pagesize} > 4
+%global kernel_pkg_name kernel-%{_kernel_pagesize}k
 %else
 %global kernel_pkg_name kernel
 %endif
@@ -37,6 +43,12 @@ Source7:  %{name}.logrotate
 Source8:  displaylink-udev-extractor.sh
 Source9:  evdi.conf
 
+Patch0:   align-with-linux-v6.11-plus.patch
+Patch1:   el9_5-build-fixes-and-el-audit-updates.patch
+Patch2:   kernel-6.13-string-literal-fix.patch
+Patch100: 0001-Patch-for-kernel-6.12.patch
+Patch101: 0001-Fix-build-for-6.14-rc3.patch
+
 BuildRequires:  gcc-c++
 BuildRequires:  libdrm-devel
 BuildRequires:  make
@@ -59,12 +71,12 @@ Requires:   xorg-x11-server-Xorg >= 1.16
 Conflicts:  mutter < 3.32
 Conflicts:  xorg-x11-server-Xorg = 1.20.1
 
-Provides:   bundled(libevdi) = 1.12.0
+Provides:   bundled(libevdi) = %{version}
 
 %description
-This adds support for HDMI/VGA adapters built upon the DisplayLink DL-6xxx,
-DL-5xxx, DL-41xx and DL-3xxx series of chipsets. This includes numerous
-docking stations, USB monitors, and USB adapters.
+This adds support for HDMI/VGA adapters built upon the DisplayLink DL-7xxx,
+DL-6xxx, DL-5xxx, DL-41xx and DL-3xxx series of chipsets. This includes
+numerous docking stations, USB monitors, and USB adapters.
 
 %define logfile %{_localstatedir}/log/%{name}/%{name}.log
 
@@ -73,7 +85,7 @@ docking stations, USB monitors, and USB adapters.
 
 %setup -q -T -D -a 4
 chmod +x displaylink-driver-%{_daemon_version}.run
-./displaylink-driver-%{_daemon_version}.run --noexec --keep
+./displaylink-driver-%{_daemon_version}.run --noexec --keep --target displaylink-driver-%{_daemon_version}
 # This creates a displaylink-driver-$version subdirectory
 
 mkdir -p evdi-%{version}
@@ -82,10 +94,20 @@ mkdir -p evdi-%{version}
 mv displaylink-driver-%{_daemon_version}/evdi.tar.gz evdi-%{version}
 cd evdi-%{version}
 gzip -dc evdi.tar.gz | tar -xvvf -
+%patch -P100 -p1
+%patch -P101 -p1
+%patch -P1 -p1
+%patch -P2 -p1
 
 %else
 %setup -q -T -D -a 0
 cd evdi-%{version}
+%patch -P0 -p1
+%patch -P100 -p1
+%patch -P101 -p1
+%patch -P1 -p1
+%patch -P2 -p1
+
 %endif
 
 sed -i 's/\r//' README.md
@@ -121,40 +143,23 @@ cp -a evdi-%{version}/library/libevdi.so.%{version} %{buildroot}%{_libexecdir}/%
 ln -sf %{_libexecdir}/%{name}/libevdi.so.%{version} %{buildroot}%{_libexecdir}/%{name}/libevdi.so
 
 # Copy over binaries in package
-
 # Don't copy libusb-1.0.so.0.2.0 it's already shipped by newer versions of libusbx
-# CentOS 7 still has older libusbx. Copy over for this distro.
-
 # Don't copy libevdi.so, we compiled it from source
 
 cd displaylink-driver-%{_daemon_version}
 
 cp -a LICENSE ../
 
-%ifarch x86_64
-cp -a x64-ubuntu-1604/DisplayLinkManager %{buildroot}%{_libexecdir}/%{name}/
-
-  %if 0%{?rhel} && 0%{?rhel} <= 7
-  cp -a x64-ubuntu-1604/libusb-1.0.so.0.2.0 %{buildroot}%{_libexecdir}/%{name}/
-  ln -sf %{_libexecdir}/%{name}/libusb-1.0.so.0.2.0 %{buildroot}/%{_libexecdir}/%{name}/libusb-1.0.so.0
-  ln -sf %{_libexecdir}/%{name}/libusb-1.0.so.0.2.0 %{buildroot}/%{_libexecdir}/%{name}/libusb-1.0.so
-  %endif
-
+%ifarch aarch64
+%global source_dir aarch64-linux-gnu
+%else
+%global source_dir x64-ubuntu-1604
 %endif
 
-%ifarch %ix86
-cp -a x86-ubuntu-1604/DisplayLinkManager %{buildroot}%{_libexecdir}/%{name}/
-
-  %if 0%{?rhel} && 0%{?rhel} <= 7
-  cp -a x86-ubuntu-1604/libusb-1.0.so.0.2.0 %{buildroot}%{_libexecdir}/%{name}/
-  ln -sf %{_libexecdir}/%{name}/libusb-1.0.so.0.2.0 %{buildroot}/%{_libexecdir}/%{name}/libusb-1.0.so.0
-  ln -sf %{_libexecdir}/%{name}/libusb-1.0.so.0.2.0 %{buildroot}/%{_libexecdir}/%{name}/libusb-1.0.so
-  %endif
-
-%endif
+cp -a %{source_dir}/DisplayLinkManager %{buildroot}%{_libexecdir}/%{name}/
 
 # Firmwares
-cp -a ella-dock-release.spkg firefly-monitor-release.spkg ridge-dock-release.spkg %{buildroot}%{_libexecdir}/%{name}/
+cp -a ella-dock-release.spkg firefly-monitor-release.spkg navarro-dock-release.spkg ridge-dock-release.spkg %{buildroot}%{_libexecdir}/%{name}/
 
 # systemd/udev
 cp -a %{SOURCE1} %{buildroot}%{_unitdir}/
@@ -167,7 +172,7 @@ cp -a %{SOURCE7} %{buildroot}%{_sysconfdir}/logrotate.d/%{name}
 cp -a %{SOURCE9} %{buildroot}%{_sysconfdir}/modprobe.d/
 
 # pm-util
-bash %{SOURCE3} displaylink-installer.sh > %{buildroot}%{_prefix}/lib/systemd/system-sleep/displaylink.sh
+bash %{SOURCE3} service-installer.sh > %{buildroot}%{_prefix}/lib/systemd/system-sleep/displaylink.sh
 chmod +x %{buildroot}%{_prefix}/lib/systemd/system-sleep/displaylink.sh
 
 # udev trigger scripts
@@ -202,6 +207,7 @@ done
 %{_prefix}/src/evdi-%{version}/LICENSE
 %{_prefix}/src/evdi-%{version}/Makefile
 %{_prefix}/src/evdi-%{version}/dkms.conf
+%{_prefix}/src/evdi-%{version}/dkms_install.sh
 %{_prefix}/src/evdi-%{version}/evdi_connector.c
 %{_prefix}/src/evdi-%{version}/evdi_cursor.c
 %{_prefix}/src/evdi-%{version}/evdi_cursor.h
@@ -226,6 +232,16 @@ done
 %{_prefix}/src/evdi-%{version}/evdi_platform_drv.h
 %{_prefix}/src/evdi-%{version}/evdi_sysfs.c
 %{_prefix}/src/evdi-%{version}/evdi_sysfs.h
+%{_prefix}/src/evdi-%{version}/tests/.kunitconfig
+%{_prefix}/src/evdi-%{version}/tests/Makefile
+%{_prefix}/src/evdi-%{version}/tests/evdi_fake_compositor.c
+%{_prefix}/src/evdi-%{version}/tests/evdi_fake_compositor.h
+%{_prefix}/src/evdi-%{version}/tests/evdi_fake_user_client.c
+%{_prefix}/src/evdi-%{version}/tests/evdi_fake_user_client.h
+%{_prefix}/src/evdi-%{version}/tests/evdi_test.c
+%{_prefix}/src/evdi-%{version}/tests/evdi_test.h
+%{_prefix}/src/evdi-%{version}/tests/test_evdi_vt_switch.c
+
 
 %dir %{_libexecdir}/%{name}
 %{_libexecdir}/%{name}/DisplayLinkManager
@@ -233,14 +249,9 @@ done
 %{_libexecdir}/%{name}/firefly-monitor-release.spkg
 %{_libexecdir}/%{name}/libevdi.so
 %{_libexecdir}/%{name}/libevdi.so.%{version}
+%{_libexecdir}/%{name}/navarro-dock-release.spkg
 %{_libexecdir}/%{name}/ridge-dock-release.spkg
 %{_libexecdir}/%{name}/udev.sh
-
-%if 0%{?rhel} && 0%{?rhel} <= 7
-%{_libexecdir}/%{name}/libusb-1.0.so.0.2.0
-%{_libexecdir}/%{name}/libusb-1.0.so.0
-%{_libexecdir}/%{name}/libusb-1.0.so
-%endif
 
 %dir %{_localstatedir}/log/%{name}/
 
@@ -252,6 +263,73 @@ done
 %systemd_postun_with_restart displaylink-driver.service
 
 %changelog
+* Wed Dec 11 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.7-4
+- Add patches for evdi builds on kernels 6.12 and 6.13-rc4 from upstream
+
+* Thu Nov 28 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.7-3
+- Add a patch to fix building evdi on EL 9.5 kernels
+
+* Sun Nov 10 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.7-2
+- Update to new DisplayLink 6.1.0 package
+- Add patch from evdi repo when using GH releases which is present in the
+  bundled evdi tarball
+
+* Fri Nov 08 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.7-1
+- Update to use the latest evdi release from upstream
+
+* Fri Aug 30 2024 Mrinal Dhillon <mrinaldhillon@gmail.com> 1.14.6-2
+- Add aarch64 support
+
+* Wed Aug 14 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.6-1
+- Update to use the latest evdi release which fixes build issues on newer kernels
+
+* Thu May 16 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.4-2
+- Remove support for CentOS 7 which never really worked and it is EOL at end of June
+- Remove checks for i386 since we are only building x86_64
+
+* Mon May 06 2024 Grzegorz Bialek <gp.bialek@gmail.com> 1.14.4-2
+- Update to new DisplayLink 6.0.0 package
+- Remove unneeded patches for newer kernels
+- Add "target" option to displaylink-driver*.run file to avoid problem with folder name that differs from daemon_version
+
+* Thu Apr 11 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.4-1
+- Update evdi driver to 1.14.4 that has been released on Github to address
+  unsafe use of strlen
+
+* Wed Apr 10 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.3-1
+- Update evdi driver to 1.14.3 that has been released on Github
+
+* Sat Mar 09 2024 Michael L. Young <elgueromexicano@gmail.com> 1.14.2-1
+- Update evdi driver to 1.14.2 that has been released on Github
+- Do not patch when using the Github released version of evdi
+
+* Sat Dec 23 2023 Michael L. Young <elgueromexicano@gmail.com> 1.14.1-2
+- Add patch from upstream for newer kernels
+- Add patch from upstream for newer EL8 and EL9 kernels.
+
+* Sat Aug 12 2023 Michael L. Young <elgueromexicano@gmail.com> 1.14.1-1
+- Update to new DisplayLink 5.8.0 package
+- Update to use new evdi 1.14.1
+- Remove patches that were merged upstream into evdi 1.14.1
+
+* Sat Jun 24 2023 Michael L. Young <elgueromexicano@gmail.com> 1.13.1-2
+- Minor update to a patch for EL8 builds
+
+* Thu Apr 20 2023 Michael L. Young <elgueromexicano@gmail.com> 1.13.1-1
+- Update to new DisplayLink 5.7.0 package
+- Update to use new evdi 1.13.1 module
+- Change file name where power management scripts are located within Displaylink
+  installer for extraction
+
+* Mon Nov 28 2022 Michael L. Young <elgueromexicano@gmail.com> 1.12.0-2
+- Add patch for evdi to compile with newer EL 8.7 and EL 9.1 releases
+  with the github release
+- Add patch for evdi to compile with newer kernels, EL 8.7 and EL 9.1
+  releases using the bundled evdi driver
+
+* Fri Oct 14 2022 Michael L. Young <elgueromexicano@gmail.com> 1.12.0-2
+- Remove EL8 and EL9 evdi patches that were merged upstream
+
 * Sat Aug 13 2022 Michael L. Young <elgueromexicano@gmail> 1.12.0-1
 - Update to use the new DisplayLink 5.6.1 package
 - Update to use evdi module 1.12.0

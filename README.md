@@ -1,13 +1,14 @@
 # DisplayLink RPM
 
 [![Build Status](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/buildcheck.yml/badge.svg)](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/buildcheck.yml)
-[![Build Status](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/devbuild.yml/badge.svg)](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/devbuild.yml)
+[![Build Status](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/mainbuild.yml/badge.svg)](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/mainbuild.yml)
 [![Build Status](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/rawhidebuilds.yml/badge.svg)](https://github.com/displaylink-rpm/displaylink-rpm/actions/workflows/rawhidebuilds.yml)
 
 This is the recipe for building the [DisplayLink driver][displaylink]
-in a RPM package for Fedora, CentOS 7 and Rocky Linux. This driver supports the following
+in a RPM package for Fedora, CentOS Stream, Rocky Linux and AlmaLinux OS. This driver supports the following
 device families:
 
+- DL-7xxx
 - DL-6xxx
 - DL-5xxx
 - DL-41xx
@@ -45,36 +46,21 @@ make github-release
 To use displaylink-rpm and the evdi kernel module with secure boot enabled on
 Fedora you need to sign the module with an enrolled Machine Owner Key (MOK).
 
-First create a self signed MOK:
+Before continue please verify if Secure boot is enabled on your system:
+`mokutil --sb-state`
 
-``` bash
-openssl req -new -x509 -newkey rsa:2048 -keyout MOK.priv -outform DER -out \
-MOK.der -nodes -days 36500 -subj "/CN=Displaylink/"
-```
+If the answer is yes, please continue with the below guide, 
+otherwise enrolled of MOK is not required and you can ignore this instruction.
 
-Then register the MOK with secure boot:
+From DKMS version [3.0.4](https://github.com/dell/dkms/releases/tag/v3.0.4) there is no need to create MOK manually,
+DKMS during installation generates its own key that needs to be enrolled only once by the user. 
 
-``` bash
-sudo mokutil --import MOK.der
-```
+To enroll the key please follow this instruction:
 
-Then reboot your Fedora host and follow the instructions to enroll the key.
-
-Now you can sign the evdi module. This must be done for every kernel upgrade:
-
-``` bash
-sudo modinfo -n evdi /lib/modules/5.10.19-200.fc33.x86_64/extra/evdi.ko.xz
-
-sudo unxz $(modinfo -n evdi)
-
-sudo /usr/src/kernels/$(uname -r)/scripts/sign-file sha256 ./MOK.priv \
-  ./MOK.der /lib/modules/$(uname -r)/extra/evdi.ko
-
-sudo xz -f /lib/modules/$(uname -r)/extra/evdi.ko
-```
-
-Now any display, hdmi and/or dvi ports on your docking station should work,
-and the displaylink-driver.service should run.
+1. Install mokutil and dkms tool from repository `sudo dnf install mokutil dkms`.
+2. Import the key by executing `mokutil --import /var/lib/dkms/mok.pub` and follow the instruction enrollment instruction available on [DKMS github page](https://github.com/dell/dkms?tab=readme-ov-file#secure-boot) (system reboot will be required).
+3. After system reboot execute `sudo dkms autoinstall` command in order to build and sign evdi module by MOK.
+4. Now evdi modul should be signed and ready to use (hdmi and/or dvi ports on your docking station should work). You can verify that by executing `sudo dkms status` or `sudo systemctl status displaylink-driver.service`.
 
 ## Hardware-specific behavior
 
@@ -109,30 +95,30 @@ build. This can leave you in a situation where you cannot upgrade your kernel
 without sacrificing your displaylink devices. This is not great if the new
 kernel has important security or performance fixes.
 
-The evdi developers use the `devel` branch as their main branch for all changes.
+The evdi developers use the `main` branch as their main branch for all changes.
 
-To pull the latest code from the `devel` branch and use it to build, do the
+To pull the latest code from the `main` branch and use it to build, do the
 following:
 
 ``` bash
-make devel
+make main
 
 make github-release
 ```
 
-Of course this `devel` branch will also include some experimental and less
+Of course this `main` branch will also include some experimental and less
 tested changes that may break things in other unexpected ways. So you should
 prefer the mainline build if it works, but if it breaks, you have the option of
-making a `devel` build.
+making a `main` build.
 
 If you are using Fedora Rawhide, you can create a build which will automatically
-download from the `devel` branch and build by running:
+download from the `main` branch and build by running:
 
 ``` bash
 make rawhide
 ```
 
-> In the past, code in the `devel` branch would be tagged and that version is what
+> In the past, code in the `main` branch would be tagged and that version is what
 > would be included in the Displaylink driver package.
 >
 > Recently, we are seeing newer changes appear in the Displaylink driver package

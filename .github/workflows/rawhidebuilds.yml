@@ -1,6 +1,7 @@
 name: Rawhide Build
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '45 5 * * 1'
 
@@ -13,18 +14,19 @@ jobs:
       matrix:
         include:
           - os: fedora
-            version: 37
-            dockernamespace: fedora
-          - os: fedora
             version: rawhide
-            dockernamespace: fedora
+            dockernamespace: quay.io/fedora/fedora
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Specify Build Target
         run: |
           echo "SPECIFICTARGET=rawhide" >> $GITHUB_ENV
-
+      
+      - name: Environment variable for OS version
+        run: |
+          echo "OSVERSION=${{ matrix.version }}" >> $GITHUB_ENV
+      
       - name: Run CI
-        run: ci/${{ matrix.os }}37plus.sh
+        run: ci/${{ matrix.os }}.sh

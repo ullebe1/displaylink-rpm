@@ -2,25 +2,25 @@
 # Versions
 #
 
-DAEMON_VERSION := 5.6.1-59.184
-DOWNLOAD_ID    := 4781    # This id number comes off the link on the displaylink website
-VERSION        := 1.12.0
-RELEASE        := 1
+DAEMON_VERSION := 6.1.0-17
+VERSION        := 1.14.7
+RELEASE        := 4
 
 #
 # Dependencies
 #
 
+ARCH := $(shell uname -m)
 DAEMON_PKG := DisplayLink_USB_Graphics_Software_for_Ubuntu_$(DAEMON_VERSION).zip
 EVDI_PKG   := v$(VERSION).tar.gz
 SPEC_FILE  := displaylink.spec
 
 # The following is a little clunky, but we need to ensure the resulting
 # tarball expands the same way as the upstream tarball
-EVDI_DEVEL_BRANCH   := devel
-EVDI_DEVEL_REPO     := https://github.com/DisplayLink/evdi.git
-EVDI_DEVEL_BASE_DIR := /var/tmp
-EVDI_DEVEL          := $(EVDI_DEVEL_BASE_DIR)/evdi-$(VERSION)
+EVDI_MAIN_BRANCH   := main
+EVDI_MAIN_REPO     := https://github.com/DisplayLink/evdi.git
+EVDI_MAIN_BASE_DIR := /var/tmp
+EVDI_MAIN          := $(EVDI_MAIN_BASE_DIR)/evdi-$(VERSION)
 
 BUILD_DEPS := $(DAEMON_PKG) $(SPEC_FILE)
 BUILD_DEPS_GITHUB_EVDI := $(DAEMON_PKG) $(EVDI_PKG) $(SPEC_FILE)
@@ -29,19 +29,17 @@ BUILD_DEPS_GITHUB_EVDI := $(DAEMON_PKG) $(EVDI_PKG) $(SPEC_FILE)
 # Targets
 #
 
-i386_RPM   := i386/displaylink-$(VERSION)-$(RELEASE).i386.rpm
-x86_64_RPM := x86_64/displaylink-$(VERSION)-$(RELEASE).x86_64.rpm
+RPM := $(ARCH)/displaylink-$(VERSION)-$(RELEASE).$(ARCH).rpm
 SRPM       := displaylink-$(VERSION)-$(RELEASE).src.rpm
 
-TARGETS    := $(i386_RPM) $(x86_64_RPM) $(SRPM)
+TARGETS    := $(RPM) $(SRPM)
 
 # Use release found on GitHub instead of what comes in the
 # Displaylink download
-i386_RPM_GITHUB_EVDI   := i386/displaylink-$(VERSION)-$(RELEASE)-github_evdi.i386.rpm
-x86_64_RPM_GITHUB_EVDI := x86_64/displaylink-$(VERSION)-$(RELEASE)-github_evdi.x86_64.rpm
+RPM_GITHUB_EVDI := $(ARCH)/displaylink-$(VERSION)-$(RELEASE)-github_evdi.$(ARCH).rpm
 SRPM_GITHUB_EVDI       := displaylink-$(VERSION)-$(RELEASE)-github_evdi.src.rpm
 
-TARGETS_GITHUB_EVDI := $(i386_RPM_GITHUB_EVDI) $(x86_64_RPM_GITHUB_EVDI) $(SRPM_GITHUB_EVDI)
+TARGETS_GITHUB_EVDI := $(RPM_GITHUB_EVDI) $(SRPM_GITHUB_EVDI)
 
 #
 # Upstream checks
@@ -59,8 +57,8 @@ define get_release_version
         echo -e "$(RELEASE)" | tr -d '[:space:]'
 endef
 
-define get_devel_date
-	curl -s $(EVDI_GITHUB)/branches/devel \
+define get_main_date
+	curl -s $(EVDI_GITHUB)/branches/main \
 		-H "Accept: application/vnd.github.full+json" |\
 		grep date | head -1 | cut -d: -f 2- |\
 		sed s/[^0-9TZ]//g
@@ -70,42 +68,43 @@ endef
 # PHONY targets
 #
 
-.PHONY: all github rpm srpm rpm-github srpm-github devel rawhide clean clean-rawhide clean-mainline clean-all versions
+.PHONY: all github rpm srpm rpm-github srpm-github devel main rawhide clean clean-rawhide clean-mainline clean-all versions
 
 all: $(TARGETS)
 
 # Use evdi tagged release on Github instead of using what is bundled in Displaylink download
 github-release: $(TARGETS_GITHUB_EVDI)
 
-rpm: $(i386_RPM) $(x86_64_RPM)
+rpm: $(RPM)
 
-srpm: $(i386_RPM) $(x86_64_RPM)
+srpm: $(RPM)
 
-rpm-github: $(i386_RPM_GITHUB_EVDI) $(x86_64_RPM_GITHUB_EVDI)
+rpm-github: $(RPM_GITHUB_EVDI)
 
 srpm-github: $(SRPM_GITHUB_EVDI)
 
-# Pull latest code from devel branch
-devel: $(EVDI_DEVEL)
-	cd $(EVDI_DEVEL) && git pull
-	tar -z -c -f $(EVDI_PKG) -C $(EVDI_DEVEL_BASE_DIR) evdi-$(VERSION)
+# Pull latest code from main branch
+devel: main
+main: $(EVDI_MAIN)
+	cd $(EVDI_MAIN) && git pull
+	tar -z -c -f $(EVDI_PKG) -C $(EVDI_MAIN_BASE_DIR) evdi-$(VERSION)
 
 # Change release version for running on Fedora Rawhide
 rawhide:
 	@echo Checking last upstream commit date...
-	$(MAKE) RELEASE="`$(get_release_version)`.rawhide.`$(get_devel_date)`" devel github-release
+	$(MAKE) RELEASE="`$(get_release_version)`.rawhide.`$(get_main_date)`" main github-release
 
 clean-rawhide:
 	@echo Checking last upstream commit date...
-	$(MAKE) RELEASE="`$(get_release_version)`.rawhide.`$(get_devel_date)`" clean-mainline
+	$(MAKE) RELEASE="`$(get_release_version)`.rawhide.`$(get_main_date)`" clean-mainline
 
 clean-mainline:
-	rm -rf $(TARGETS) $(EVDI_DEVEL) $(EVDI_PKG)
+	rm -rf $(TARGETS) $(EVDI_MAIN) $(EVDI_PKG)
 
 clean: clean-mainline clean-rawhide
 
 clean-all:
-	rm -rf i386/*.rpm x86_64/*.rpm displaylink*.src.rpm $(EVDI_PKG) $(EVDI_DEVEL)
+	rm -rf $(ARCH)/*.rpm displaylink*.src.rpm $(EVDI_PKG) $(EVDI_MAIN)
 
 # for testing our version construction
 versions:
@@ -115,19 +114,19 @@ versions:
 	@echo Checking upstream version...done
 	@echo
 	@echo Checking last upstream commit date...
-	@devel_date=`$(get_devel_date)` && echo DEVEL_DATE: $$devel_date
+	@main_date=`$(get_main_date)` && echo MAIN_DATE: $$main_date
 	@echo Checking last upstream commit date...done
 
 #
 # Real targets
 #
 
-$(EVDI_DEVEL):
-	git clone --depth 1 -b $(EVDI_DEVEL_BRANCH) $(EVDI_DEVEL_REPO) $(EVDI_DEVEL)
+$(EVDI_MAIN):
+	git clone --depth 1 -b $(EVDI_MAIN_BRANCH) $(EVDI_MAIN_REPO) $(EVDI_MAIN)
 
 $(DAEMON_PKG):
 	wget --no-verbose -O $(DAEMON_PKG) \
-		"https://www.synaptics.com/sites/default/files/exe_files/2022-08/DisplayLink USB Graphics Software for Ubuntu5.6.1-EXE.zip"
+		"https://www.synaptics.com/sites/default/files/exe_files/2024-10/DisplayLink USB Graphics Software for Ubuntu6.1-EXE.zip"
 
 $(EVDI_PKG):
 	wget --no-verbose -O v$(VERSION).tar.gz \
@@ -148,24 +147,14 @@ BUILD_DEFINES =                                                     \
 
 BUILD_DEFINES_GITHUB_EVDI = --define "_github 1"
 
-$(i386_RPM): $(BUILD_DEPS)
-	CFLAGS='-m32 -march=i386' \
-	LDFLAGS='-m32 -march=i386' \
-	rpmbuild -bb $(BUILD_DEFINES) displaylink.spec --target=i386
-
-$(x86_64_RPM): $(BUILD_DEPS)
-	rpmbuild -bb $(BUILD_DEFINES) displaylink.spec --target=x86_64
+$(RPM): $(BUILD_DEPS)
+	rpmbuild -bb $(BUILD_DEFINES) displaylink.spec --target=$(ARCH)
 
 $(SRPM): $(BUILD_DEPS)
 	rpmbuild -bs $(BUILD_DEFINES) displaylink.spec
 
-$(i386_RPM_GITHUB_EVDI): $(BUILD_DEPS_GITHUB_EVDI)
-	CFLAGS='-m32 -march=i386' \
-	LDFLAGS='-m32 -march=i386' \
-	rpmbuild -bb $(BUILD_DEFINES)$(BUILD_DEFINES_GITHUB_EVDI) displaylink.spec --target=i386
-
-$(x86_64_RPM_GITHUB_EVDI): $(BUILD_DEPS_GITHUB_EVDI)
-	rpmbuild -bb $(BUILD_DEFINES)$(BUILD_DEFINES_GITHUB_EVDI) displaylink.spec --target=x86_64
+$(RPM_GITHUB_EVDI): $(BUILD_DEPS_GITHUB_EVDI)
+	rpmbuild -bb $(BUILD_DEFINES)$(BUILD_DEFINES_GITHUB_EVDI) displaylink.spec --target=$(ARCH)
 
 $(SRPM_GITHUB_EVDI): $(BUILD_DEPS_GITHUB_EVDI)
 	rpmbuild -bs $(BUILD_DEFINES)$(BUILD_DEFINES_GITHUB_EVDI) displaylink.spec
