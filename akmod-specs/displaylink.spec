@@ -5,7 +5,7 @@
 Name:		displaylink
 Version:	6.1.0
 %global displaylink_rpm_commit aa1003e1d3c7764ad0c2d5a5776f0bf811d289c3
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	Meta-package for proprietary DisplayLinkManager application
 URL:		https://www.synaptics.com/products/displaylink-graphics/downloads/ubuntu
 Source0:	https://www.synaptics.com/sites/default/files/exe_files/2024-10/DisplayLink%20USB%20Graphics%20Software%20for%20Ubuntu6.1-EXE.zip
@@ -31,7 +31,7 @@ URL:		https://www.synaptics.com/products/displaylink-graphics/downloads/ubuntu
 ExclusiveArch:	aarch64 armv7hl i386 x86_64
 BuildRequires:	libdrm-devel
 # The DisplayLinkManager binary is linked at run-time to a specific version of libevdi
-Requires:	libevdi == 1.14.7
+Requires:	libevdi == 1.14.8
 
 %description manager
 This contains the proprietary tools needed to communicate with and manage
@@ -149,7 +149,9 @@ cp -a 99-displaylink.rules %{buildroot}%{_udevrulesdir}
 cp -a 20-displaylink.conf %{buildroot}%{_datadir}/X11/xorg.conf.d
 
 %changelog
-* Sun Jan 05 2025 ullebe1 <ullebe1@gmail.com> 6.1.0
+* Sun Jan 05 2025 ullebe1 <ullebe1@gmail.com> 6.1.0-2
+- Update libevdi dependency to 1.14.8
+* Sun Jan 05 2025 ullebe1 <ullebe1@gmail.com> 6.1.0-1
 - Latest 6.1.0 release
 * Mon Oct 31 2022 ffgiff <ffgiff@gmail.com> 5.6.1-1
 - Latest 5.6.1 release

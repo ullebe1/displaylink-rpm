@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 Name:		evdi
-Version:	1.14.7
+Version:	1.14.8
 Release:	1%{?dist}
 Summary:	User-land library for Extensible Virtual Display Interface Kernel module
 URL:		https://github.com/DisplayLink/evdi
-Source0:	%{url}/archive/14286c973dba40199c977ade9d6dca8a19f93e61.tar.gz
+Source0:	%{url}/archive/3a82424f1a1e0154ff6dd910a3ff15fe01ea6170.tar.gz
 License:	LGPLv2
 BuildRequires:	libdrm-devel
 Provides:	evdi-kmod-common = %{version}-%{release}
@@ -18,7 +18,7 @@ Provides:	libevdi = %{version}-%{release}
 %{_libdir}/libevdi.so.0
 %{_libdir}/libevdi.so.%{version}
 %{_modprobedir}/evdi.conf
-%doc evdi-14286c973dba40199c977ade9d6dca8a19f93e61/docs/index.md
+%doc evdi-3a82424f1a1e0154ff6dd910a3ff15fe01ea6170/docs/index.md
 
 %global _hardened_build 1
 
@@ -26,21 +26,23 @@ Provides:	libevdi = %{version}-%{release}
 User-land library for Extensible Virtual Display Interface Kernel module
 
 %prep
-%setup -q -c evdi-14286c973dba40199c977ade9d6dca8a19f93e61
+%setup -q -c evdi-3a82424f1a1e0154ff6dd910a3ff15fe01ea6170
 
 %build
-pushd evdi-14286c973dba40199c977ade9d6dca8a19f93e61
+pushd evdi-3a82424f1a1e0154ff6dd910a3ff15fe01ea6170
 CFLAGS="$RPM_OPT_FLAGS" %{make_build} -C library
 
 %install
 # Library
-pushd evdi-14286c973dba40199c977ade9d6dca8a19f93e61
+pushd evdi-3a82424f1a1e0154ff6dd910a3ff15fe01ea6170
 LIBDIR=%{_libdir} %{make_install} -C library
 mkdir -p %{buildroot}%{_modprobedir}
 cat > %{buildroot}%{_modprobedir}/evdi.conf <<< "options evdi initial_device_count=4"
 
 
 %changelog
+* Sun Jan 05 2025 ullebe1 <ullebe1@gmail.com> 1.14.8-1
+- Latest 1.14.8-1 release
 * Sun Jan 05 2025 ullebe1 <ullebe1@gmail.com> 1.14.7-1
 - Latest 1.14.7-1 release
 * Mon Oct 31 2022 ffgiff <ffgiff@gmail.com> 1.12.0-1
