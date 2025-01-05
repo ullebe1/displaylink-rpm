@@ -76,7 +76,7 @@ docking stations, USB monitors, and USB adapters.
 %post config
 %systemd_post displaylink-driver.service
 
-
+%global debug_package %{nil}
 
 %prep
 %setup -q -T -D -a 1 -c -n %{name}-rpm-%{displaylink_rpm_commit}
@@ -93,7 +93,7 @@ done
 unzip "%{SOURCE0}"
 chmod +x displaylink-driver-%{version}-17.run
 ./displaylink-driver-%{version}-17.run --noexec --keep
-chmod 644 displaylink-driver-%{version}-17/LICENSE
+chmod 644 displaylink-driver-%{version}/LICENSE
 
 %install
 mkdir -p %{buildroot}%{_libexecdir}/%{name}/			\
@@ -106,7 +106,7 @@ mkdir -p %{buildroot}%{_libexecdir}/%{name}/			\
 	%{buildroot}%{_localstatedir}/log/%{name}/
 
 # DisplayLinkManager
-pushd displaylink-driver-%{version}-17
+pushd displaylink-driver-%{version}
 
 cp LICENSE ..
 
