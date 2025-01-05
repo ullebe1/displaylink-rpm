@@ -15,7 +15,7 @@ Provides:	libevdi = %{version}-%{release}
 
 %files
 %{_libdir}/libevdi.so
-%{_libdir}/libevdi.so.0
+%{_libdir}/libevdi.so.1
 %{_libdir}/libevdi.so.%{version}
 %{_modprobedir}/evdi.conf
 %doc evdi-3a82424f1a1e0154ff6dd910a3ff15fe01ea6170/docs/index.md
